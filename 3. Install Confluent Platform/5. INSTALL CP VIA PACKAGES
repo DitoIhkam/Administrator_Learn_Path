@@ -1,0 +1,220 @@
+# Activity
+The purpose of this activity is to:
+
+* Install Confluent Platform with a package manager
+* Interact with `systemd` services with `systemctl` and `journalctl`
+* Produce and consume Avro data with the help of Schema Registry
+
+## Install Confluent Platform
+1. Open a terminal in the Fresh Install lab environment and install Java 11 with sudo password training.
+
+```
+sudo apt-get install openjdk-11-jre-headless
+```
+
+2. Add the Confluent apt repository key to the system’s apt keys.
+
+```
+wget -qO - https://packages.confluent.io/deb/7.1/archive.key | sudo apt-key add -
+```
+
+3. Add the Confluent apt repository to the system’s sources, and update package index files.
+
+```
+sudo add-apt-repository \
+"deb [arch=amd64] https://packages.confluent.io/deb/7.1 stable main" && \
+sudo apt-get update
+```
+
+4. Install Confluent Platform, including Confluent Server’s enhanced security features.
+
+```
+sudo apt-get install -y \
+confluent-platform \
+confluent-security
+```
+
+
+##  Interact with `systemd` services
+
+1. Inspect the `systemd` unit file for the `confluent-server` service included in the installation. Specifically notice the command provided for **ExecStart**. These commands and associated configuration files are explored more deeply in another module.
+
+```
+systemctl cat confluent-server
+```
+
+2. Start the ZooKeeper service (required to start first).
+
+```
+sudo systemctl start confluent-zookeeper
+```
+
+3. Follow the logs using `journalctl`. Exit `journalctl` with `Ctrl+C` when you are ready.
+
+```
+sudo journalctl -f -u confluent-zookeeper --output cat
+```
+> The -f option is used to follow the tail of the log, and the -u option specifies the unit to follow, which is confluent-zookeeper in this case. The --output cat option makes the output a little easier to read.
+
+4. Start the `confluent-server` service (required to start after ZooKeeper).
+```
+while true
+do
+    if [[ ! -z $(nc -v -z localhost 2181 2>&1 | grep succeeded) ]]; then
+        sudo systemctl start confluent-server
+        break
+    else
+        echo "waiting for zookeeper to be available on port 2181"
+        sleep 5
+    fi
+done
+```
+
+5. Start the `confluent-schema-registry` service (required to start after Confluent Server).
+```
+while true
+do
+    if [[ ! -z $(nc -v -z localhost 9092 2>&1 | grep succeeded) ]]; then
+        sudo systemctl start confluent-schema-registry
+        break
+    else
+        echo "waiting for kafka to be available on port 9092"
+        sleep 5
+    fi
+done
+```
+
+6. Start other services (started in any order after Schema Registry).
+```
+sudo systemctl start \
+    confluent-kafka-connect \
+    confluent-ksqldb \
+    confluent-kafka-rest
+```
+
+7. Just to practice more with `journalctl`, view the last 50 log entries of the `confluent-server` service. Exit `journalctl` with `Ctrl+C` when you are ready.
+
+```
+sudo journalctl -n 50 -u confluent-server --output cat
+```
+
+> Enable any service to start on bootup with sudo systemctl enable <services>. For example, sudo systemctl enable confluent-zookeeper confluent-server.
+
+## Produce and consume Avro data
+
+1. Create an Avro schema file for the data you will produce to Kafka.
+```
+cat <<EOF > ~/temperature_reading.avsc
+{
+ "namespace": "io.confluent.examples",
+ "type": "record",
+ "name": "temperature_reading",
+ "fields": [
+    {"name": "city", "type": "string"},
+    {"name": "temp", "type": "int", "doc": "temperature in Fahrenheit"} ]
+}
+EOF
+```
+
+2. Open a second terminal window and set the two windows side by side.
+
+3. By default, the Kafka console tools will attempt to write their application logs to `/usr/logs`, which often results in permissions errors or "directory not found" errors. In both terminal windows, explicitly set the `LOG_DIR` variable to point to `/tmp` to avoid this.
+
+```
+export LOG_DIR=/tmp
+```
+
+4. In the right terminal window, set up a command line consumer to read keys and values from messages in the `temperatures` Kafka topic.
+
+```
+kafka-avro-console-consumer \
+    --bootstrap-server localhost:9092 \
+    --topic temperatures  \
+    --property print.key=true \
+    --property key.deserializer=org.apache.kafka.common.serialization.StringDeserializer
+```
+
+> The `--bootstrap-server` option sets the host and port of the Kafka broker. The `print.key=true` property means the consumer will print both key and value of each event. The `key.deserializer` indicates the key is expected to deserialize to a String. Since we are using the `avro` console consumer tool, the value is assumed to be in Avro format. The consumer will automatically retrieve the schema from Schema Registry once it is available.
+
+5. In the left terminal, start a command line producer to produce events to the `temperatures` Kafka topic.
+```
+kafka-avro-console-producer \
+--bootstrap-server localhost:9092 \
+--topic temperatures \
+--property key.serializer=org.apache.kafka.common.serialization.StringSerializer \
+--property parse.key=true --property key.separator=, \
+--property value.schema.file=$HOME/temperature_reading.avsc
+```
+> The --bootstrap-server option sets the host and port of the Kafka broker. The parse.key=true means we are producing events with keys and values rather than just values. The key.separator=, means we are using a comma to separate keys and values. We specify a String serializer for the key. The value.schema.file property is used to point to the temperature_reading.avsc schema file we created earlier. The producer will automatically register this schema with Schema Registry.
+
+6. Write a few temperature events to the temperatures topic. You can paste all the events into the terminal at once or enter them one at a time to see the consumer read each event in real time.
+```
+alameda,{"city":"alameda","temp":58}
+ashland,{"city":"ashland","temp":62}
+nairobi,{"city":"nairobi","temp":65}
+sydney,{"city":"sydney","temp":75}
+```
+ 7. Stop any running producer and consumer processes with Ctrl+C.
+
+
+## (Optional) Start Confluent Control Center
+1. Starting the Confluent Control Center service on a single machine requires some special care. All other services are designed so that they all can be started together on a single machine without special configuration. Look at the service unit file.
+```
+systemctl cat confluent-control-center
+```
+Notice the name of the properties file is control-center-production.properties, which is a configuration meant for a multi-machine, production-grade deployment.
+
+> The ExecStart setting may not fit on the screen. You can use the the right arrow key to view the entire line.
+
+2. We could either modify the `control-center-production.properties` file and start Control Center as usual with `systemctl start confluent-control-center` or start the process manually using a different configuration file made specifically for local development. In this case, let’s start Confluent Control Center with the included local development configuration file.
+```
+control-center-start \
+/etc/confluent-control-center/control-center-dev.properties
+```
+
+3. Open a browser and navigate to http://localhost:9021 to open Confluent Control Center.
+
+a. Select Cluster 1 from the left menu.
+
+b. Take a moment to consider each section:
+
+* Overview
+* Brokers
+* Topics → temperatures → Schema
+* Connect
+* ksqlDB
+* Consumers
+* Cluster Settings
+
+## Destroy Your Lab VM
+You can safely destroy your lab virtual machine when you are finished.
+
+# Activity Debrief
+## Takeaways
+* Install by adding a repository to the package manager and running an install command.
+* Use `systemctl` to manage services. Examples:
+
+	* systemctl cat confluent-server
+	* sudo systemctl enable confluent-schema-registry
+	* sudo systemctl start confluent-ksqldb
+	* sudo systemctl restart confluent-kafka-connect
+	* sudo systemctl stop confluent-server
+* Use journalctl to view service logs. Examples:
+
+	* sudo journalctl -f -u confluent-server --output cat
+	* sudo journalctl -n 50 -u confluent-server -o cat
+	* sudo journalctl -u confluent-server -o cat --since "5 minutes ago" --until "1 minute ago" | grep ERROR
+* Use Kafka console command line tools to produce and consume data.
+* Use Confluent Control Center as a graphical interface to monitor and manage Confluent Platform.
+
+# Summary
+In this module, you:
+
+* Installed Confluent Platform
+* Managed various services with systemd and journalctl
+* Produced and consumed data with the help of Schema Registry
+
+## References
+https://docs.confluent.io/current/installation/installing_cp/index.html#on-premises-deployments
+
+https://www.loggly.com/ultimate-guide/using-systemctl/
