@@ -20,7 +20,7 @@ In this activity, you will:
 ```
 sudo apt-get install openjdk-11-jre-headless
 ```
-(image installation)
+
 > need java 11 or more (17?)
 
 2. Download and extract the Confluent Platform 7.1.1 TAR archive (or more cp version?)
@@ -31,13 +31,14 @@ curl -O http://packages.confluent.io/archive/7.1/confluent-7.1.1.tar.gz
 tar xvzf confluent-7.1.1.tar.gz
 ```
 (image installation)
+![alt text](https://github.com/DitoIhkam/Administrator_Learn_Path/blob/main/3.%20Install%20Confluent%20Platform/img/1.png?raw=true)
 
 3. Take a moment to explore via vscode
 ```
 code ~/confluent-7.1.1
 ```
 (image installation)
-
+![alt text](https://github.com/DitoIhkam/Administrator_Learn_Path/blob/main/3.%20Install%20Confluent%20Platform/img/2.png?raw=true)
 ## Configure the Confluent CLI
 
 1. Set the `CONFLUENT_HOME` variable to the location of the install and add it to the `.bashrc.`
@@ -52,6 +53,7 @@ export CONFLUENT_HOME=${HOME}/confluent-7.1.1 \
 echo "export PATH=$CONFLUENT_HOME/bin:${PATH}" >> ~/.bashrc
 ```
 (image installation)
+![alt text](https://github.com/DitoIhkam/Administrator_Learn_Path/blob/main/3.%20Install%20Confluent%20Platform/img/3.png?raw=true)
 
 3. Enable bash completion for the `confluent` CLI and source the `.bashrc` for all the changes to take effect.
 ```
@@ -61,6 +63,7 @@ echo "export PATH=$CONFLUENT_HOME/bin:${PATH}" >> ~/.bashrc
 ```
 
 (image installation)
+![alt text](https://github.com/DitoIhkam/Administrator_Learn_Path/blob/main/3.%20Install%20Confluent%20Platform/img/4.png?raw=true)
 
 ## Start Confluent Local Service
 
@@ -73,6 +76,7 @@ confluent local services start
 ```
 code /tmp/confluent.<number>
 ```
+![alt text](https://github.com/DitoIhkam/Administrator_Learn_Path/blob/main/3.%20Install%20Confluent%20Platform/img/5.png?raw=true)
 
 ## Produce and Consume Avro Data
 
@@ -102,6 +106,7 @@ kafka consume temperatures \
 --value-format avro
 ```
 
+
 > confluent local services kafka knows to look for Kafka at localhost:9092. The print.key=true property means we will see each event’s key in addition to its value. We provide a deserializer for the key. The --value-format avro means we are expecting Avro serialized data for the value.
 
 4. In the left terminal, start a command line producer to produce events to the temperatures Kafka topic.
@@ -114,6 +119,7 @@ kafka produce temperatures \
 --value-format avro \
 --property value.schema.file=$HOME/temperature_reading.avsc
 ```
+![alt text](https://github.com/DitoIhkam/Administrator_Learn_Path/blob/main/3.%20Install%20Confluent%20Platform/img/6.1.png?raw=true)
 
 >The parse.key=true means we are producing events with keys and values rather than just values. The key.separator=, means we are using a comma to separate keys and values. We specify a String serializer for the key. The value format is Avro and the schema for the value is provided with the temperature_reading.avsc file we created earlier.
 
@@ -124,6 +130,9 @@ ashland,{"city":"ashland","temp":62}
 nairobi,{"city":"nairobi","temp":65}
 sydney,{"city":"sydney","temp":75}
 ```
+
+![alt text](https://github.com/DitoIhkam/Administrator_Learn_Path/blob/main/3.%20Install%20Confluent%20Platform/img/6.2.png?raw=true)
+
 6. Stop any running producer and consumer processes with Ctrl+C.
 
 ## (Optional) Explore Confluent Control Center
@@ -146,6 +155,11 @@ b. Take a moment to consider each section:
 * Consumers
 
 * Cluster Settings
+
+![alt text](https://github.com/DitoIhkam/Administrator_Learn_Path/blob/main/3.%20Install%20Confluent%20Platform/img/7.png?raw=true)
+![alt text](https://github.com/DitoIhkam/Administrator_Learn_Path/blob/main/3.%20Install%20Confluent%20Platform/img/7.1.png?raw=true)
+![alt text](https://github.com/DitoIhkam/Administrator_Learn_Path/blob/main/3.%20Install%20Confluent%20Platform/img/7.2.png?raw=true)
+![alt text](https://github.com/DitoIhkam/Administrator_Learn_Path/blob/main/3.%20Install%20Confluent%20Platform/img/7.3.png?raw=true)
 
 ## Stop Confluent Local Services
 1. Destroy your local Confluent Platform deployment.
