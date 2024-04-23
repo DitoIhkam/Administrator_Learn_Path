@@ -118,7 +118,12 @@ kafka produce temperatures \
 >The parse.key=true means we are producing events with keys and values rather than just values. The key.separator=, means we are using a comma to separate keys and values. We specify a String serializer for the key. The value format is Avro and the schema for the value is provided with the temperature_reading.avsc file we created earlier.
 
 5. Write a few `temperature` events to the temperatures topic. Press `Enter` to submit each event.
-
+```
+alameda,{"city":"alameda","temp":58}
+ashland,{"city":"ashland","temp":62}
+nairobi,{"city":"nairobi","temp":65}
+sydney,{"city":"sydney","temp":75}
+```
 6. Stop any running producer and consumer processes with Ctrl+C.
 
 ## (Optional) Explore Confluent Control Center
